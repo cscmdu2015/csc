@@ -1,9 +1,0 @@
-{
-  "/dashboard/page": "app/dashboard/page.js",
-  "/leaderboard/page": "app/leaderboard/page.js",
-  "/admin/page": "app/admin/page.js",
-  "/typing-test/[language]/[level]/page": "app/typing-test/[language]/[level]/page.js",
-  "/contact/page": "app/contact/page.js",
-  "/profile/page": "app/profile/page.js",
-  "/auth/page": "app/auth/page.js"
-}
