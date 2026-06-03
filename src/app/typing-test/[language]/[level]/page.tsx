@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/config/supabase";
-import { Loader2, FileCheck, RefreshCw, ChevronLeft } from "lucide-react";
+import { Loader2, FileCheck, RefreshCw, ChevronLeft, Delete } from "lucide-react";
 import Link from "next/link";
 
 export default function TypingTestPage() {
@@ -20,6 +20,9 @@ export default function TypingTestPage() {
   const [passageWords, setPassageWords] = useState<string[]>([]);
   const [passageId, setPassageId] = useState<string | null>(null);
   const [dbLoading, setDbLoading] = useState(true);
+
+  // Backspace configuration state
+  const [allowBackspace, setAllowBackspace] = useState(false);
 
   // Controlled aggregate string containing entire typed workflow natively
   const [fullInputValue, setFullInputValue] = useState("");
@@ -118,24 +121,21 @@ export default function TypingTestPage() {
     let currentErrors = 0;
     let correctCount = 0;
 
-    // Evaluate up to the full document scope to catch wrong and missing elements
     passageWords.forEach((word, idx) => {
       if (idx < currentWordIdx) {
         if (typedWords[idx] === word) {
           correctCount++;
         } else {
-          currentErrors++; // Wrong typed word or missed index element
+          currentErrors++;
         }
       } else if (idx === currentWordIdx) {
         const currentSegments = fullInputValue.trim().split(/\s+/);
         const activeText = currentSegments[currentWordIdx] || "";
         if (activeText && activeText !== word) {
-          // If they have typed text that doesn't match the active word, track live error progress
           const isMismatch = activeText !== word.slice(0, activeText.length);
           if (isMismatch) currentErrors++;
         }
       } else {
-        // Any word from the original passage that remains untyped/missing is counted as an error
         currentErrors++;
       }
     });
@@ -185,7 +185,6 @@ export default function TypingTestPage() {
 
     setFullInputValue(value);
 
-    // Track array snapshots from the continuous input sequence string split
     if (value.endsWith(" ")) {
       const trimmedWords = value.trim().split(/\s+/);
       if (trimmedWords.length > currentWordIdx) {
@@ -208,8 +207,18 @@ export default function TypingTestPage() {
 
   const handleKeyDownInput = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Backspace") {
-      e.preventDefault(); // Complete strict block across all scenarios
-      return;
+      // If backspace option is disabled, block it entirely
+      if (!allowBackspace) {
+        e.preventDefault();
+        return;
+      }
+      
+      // If backspace is allowed, we still want to block them from erasing words 
+      // that have already been finalized with a space character.
+      if (fullInputValue.endsWith(" ") && fullInputValue.length > 0) {
+        e.preventDefault();
+        return;
+      }
     }
     if (e.key === " ") {
       if (fullInputValue.endsWith(" ") || fullInputValue === "") {
@@ -229,7 +238,6 @@ export default function TypingTestPage() {
       setTypedWords(finalTyped);
     }
 
-    // Final accurate check across all validation indexes 
     let finalErrors = 0;
     let correctCount = 0;
     
@@ -237,7 +245,7 @@ export default function TypingTestPage() {
       if (finalTyped[idx] === word) {
         correctCount++;
       } else {
-        finalErrors++; // Missing, wrong or skipped words explicitly counted as a mistake
+        finalErrors++;
       }
     });
 
@@ -407,11 +415,30 @@ export default function TypingTestPage() {
             </div>
           </div>
 
-          {/* Timer + Start Controls */}
-          <div className="flex items-center gap-4">
+          {/* Timer, Backspace Toggle + Start Controls */}
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-6">
+            
+            {/* Backspace Toggle Button */}
+            <button
+              onClick={() => setAllowBackspace(!allowBackspace)}
+              disabled={testStarted}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all duration-300 ${
+                testStarted 
+                  ? "opacity-50 cursor-not-allowed border-glass-border bg-slate-900 text-slate-500" 
+                  : allowBackspace
+                    ? "bg-brand-purple/20 border-brand-purple text-brand-purple shadow-md shadow-brand-purple/10"
+                    : "bg-slate-950/40 border-glass-border text-slate-400 hover:text-white hover:border-slate-500"
+              }`}
+              title={testStarted ? "Cannot change mode during an active test" : `Click to ${allowBackspace ? 'Disable' : 'Enable'} Backspace`}
+            >
+              <Delete className="w-4 h-4" />
+              Backspace: {allowBackspace ? "ON (Practice)" : "OFF (Exam)"}
+            </button>
+
             <div className={`text-4xl font-mono font-black tracking-wider ${timeLeft < 60 ? "text-brand-danger animate-pulse" : "text-brand-indigo"}`}>
               {formatTime(timeLeft)}
             </div>
+
             {!testStarted && (
               <button
                 onClick={handleStartTest}
